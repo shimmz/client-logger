@@ -3,13 +3,19 @@ angular module for a client side logger
 
 author: shimmy rothstein
 
-directive for adding logging ability to html elements
-add logger-overlay element somewhere in base html for rerun option (preferably only for developer)
+directive for adding logging ability to html elements.
+
+add logger-overlay element somewhere in base html for rerun option (preferably only for developer).
+
 add client-logger attribute to element.
-add name-to-log attribute with desired name
-add action-to-log attribute with desired events to log, if multiple seperate with ',' (defualt is "change")
-add value-to-log attribute with name of desired value to add to log (defualt is "value")
-Inject 'ClientLogger' into your angular module and controller
+
+add name-to-log attribute with desired name.
+
+add action-to-log attribute with desired events to log, if multiple seperate with ',' (defualt is "change").
+
+add value-to-log attribute with name of desired value to add to log (defualt is "value").
+
+Inject 'ClientLogger' into your angular module and controller.
 
 # API:
 LogStackService.setAddress("your address here");
