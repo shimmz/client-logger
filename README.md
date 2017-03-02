@@ -15,7 +15,9 @@ add action-to-log attribute with desired events to log, if multiple seperate wit
 
 add value-to-log attribute with name of desired value to add to log (defualt is "value").
 
-Inject 'ClientLogger' into your angular module and controller.
+Inject 'ClientLogger' into client your angular module.
+
+Inject 'DeveloperLogService' into client your angular module and controller.
 
 # API:
 LogStackService.setAddress("your address here");
