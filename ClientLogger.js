@@ -6,8 +6,6 @@
 
 *
 
-* add logger-overlay element somewhere in base html for rerun option (preferably only for developer)
-
 * add client-logger attribute to element.
 
 * add name-to-log attribute with desired name
@@ -18,41 +16,41 @@
 
 *
 
-* Inject 'ClientLogger' into your angular module and controller
+* Inject 'ClientLogger' into client module and controller
 
 *
 
 * API:
 
-*  LogStackService.setAddress("your address here");
+*  ClientLogService.setAddress("your address here");
 
 *
 
-*  LogStackService.setBuffer(num)
+*  ClientLogService.setBuffer(num)
 
 *
 
- *  LogStackService.addLog(obj) where obj type of {elementName: "chosen element", elementType: "chosen element type", action: "event", value: "value"}
+ *  ClientLogService.addLog(obj) where obj type of {elementName: "chosen element", elementType: "chosen element type", action: "event", value: "value"}
 
 *
 
-*  LogStackService.getLog()
+*  ClientLogService.getLog()
 
 *
 
-*  LogStackService.deleteLog()
+*  ClientLogService.deleteLog()
 
 *
 
-*  LogStackService.emptyLog()
+*  ClientLogService.emptyLog()
 
 *
 
- *  LogStackService.sendLogTo(address)
+ *  ClientLogService.sendLogTo(address)
 
  *
 
-*  LogStackService.rerunLog()
+*  DeveloperLogService.rerunLog()
 
  *
 
@@ -76,7 +74,9 @@ var ConfigObject = function () {
 
         Controller: "Loggercntrl",
 
-        Service: 'LogStackService',
+        ClientLogService: 'ClientLogService',
+
+        DeveloperLogService: 'DeveloperLogService',
 
         UniqueIdService: 'UniqueIdService',
 
@@ -124,21 +124,143 @@ app.service(ConfigObject.UniqueIdService, function () {
 
  
 
-app.service(ConfigObject.Service, function ($http, $timeout, $window) {
+app.service(ConfigObject.DeveloperLogService, function ($timeout, ClientLogService) {
 
-    return new LogStackServiceObj($http, $timeout, $window);
+    return new DeveloperLogServiceObj($timeout, ClientLogService);
 
-})
-
- 
+});
 
  
 
-function LogStackServiceObj($http, $timeout, $window) {
+function DeveloperLogServiceObj($timeout, ClientLogService) {
 
     var self = this;
 
-    var alowLogging = true;
+ 
+
+    var rerunStack = [];
+
+    self.logMessages = [];
+
+    //add log to stack
+
+ 
+
+    var borderStyle = document.createElement('style');
+
+    borderStyle.innerHTML = '.logCurrentAction{border-style:inset; border-color:#f09942; border-width:5px;}';
+
+    document.head.appendChild(borderStyle);
+
+ 
+
+    self.speed;
+
+ 
+
+    var loggerOverlay = null;
+
+ 
+
+    var rerunLoop = function (i) {
+
+        if (i >= rerunStack.length) {
+
+            ClientLogService.allowLogging = true;
+
+            loggerOverlay.css('display', 'none');
+
+            self.logMessages = {};
+
+            return;
+
+        }
+
+        var string = "[" + ConfigObject.IdAttribute + "=\"" + rerunStack[i].log.loggerId + "\"]";
+
+        var JQElem = document.querySelector(string);
+
+        var elem = angular.element(JQElem);
+
+        if (angular.isUndefinedOrNull(JQElem)) {
+
+            rerunStack[i].log.message = "Element no longer exists in html"
+
+        } else {
+
+            elem.addClass('logCurrentAction');
+
+            elem.val(rerunStack[i].log.value);
+
+            elem.triggerHandler(rerunStack[i].log.action);
+
+        }
+
+        self.logMessages = rerunStack[i].log;//put in if(elem exsits)
+
+        $timeout(function (elem, i) {
+
+            elem.removeClass('logCurrentAction');
+
+            $timeout(function (i) { rerunLoop(i + 1); }, 400, true, i);
+
+        }, self.speed, true, elem, i);
+
+    }
+
+    //play log
+
+    self.rerunLog = function (stack) {
+
+        if (angular.isUndefinedOrNull(stack)) {
+
+            rerunStack = ClientLogService.getLog();
+
+        } else {
+
+            rerunStack = stack;
+
+        }
+
+        if (angular.isUndefinedOrNull(loggerOverlay)) {
+
+            loggerOverlay = angular.element(document.querySelector('#loggerOverlay'))
+
+        }
+
+        loggerOverlay.css('display', 'initial');
+
+        ClientLogService.allowLogging = false;
+
+        rerunLoop(0);
+
+    }
+
+}
+
+ 
+
+ 
+
+ 
+
+app.service(ConfigObject.ClientLogService, function ($http, $window) {
+
+    return new ClientLogServiceObj($http, $window);
+
+});
+
+ 
+
+ 
+
+function ClientLogServiceObj($http, $window) {
+
+    var self = this;
+
+ 
+
+    self.allowLogging = true;
 
     //buffer size of log stack
 
@@ -156,9 +278,7 @@ function LogStackServiceObj($http, $timeout, $window) {
 
     var LogStack = [];
 
-    var rerunStack = [];
-
-    self.logMessages = {};
+ 
 
     //add log to stack
 
@@ -166,7 +286,7 @@ function LogStackServiceObj($http, $timeout, $window) {
 
         if (!angular.isUndefinedOrNull(obj)) {
 
-            if (alowLogging) {
+            if (self.allowLogging) {
 
                 LogStack.push({ time: new Date().toLocaleString('en-GB'), log: obj });
 
@@ -234,111 +354,11 @@ function LogStackServiceObj($http, $timeout, $window) {
 
     $window.onbeforeunload = self.sendLog;
 
- 
-
-   
-
-    var borderStyle = document.createElement('style');
-
-    borderStyle.innerHTML = '.logCurrentAction{border-style:inset; border-color:#f09942; border-width:5px;}';
-
-    document.head.appendChild(borderStyle);
-
- 
-
-    self.speed;
-
- 
-
-    var loggerOverlay = null;
-
-    //
-
-   
-
- 
-
-    var rerunLoop = function (i) {
-
-        if (i >= rerunStack.length) {
-
-            alowLogging = true;
-
-            loggerOverlay.css('display', 'none');
-
-            self.logMessages = {};
-
-            return;
-
-        }
-
-        var string = "[" + ConfigObject.IdAttribute + "=\"" + rerunStack[i].log.loggerId + "\"]";
-
-        var JQElem = document.querySelector(string);
-
-        var elem = angular.element(JQElem);
-
-        if (angular.isUndefinedOrNull(JQElem)) {
-
-            rerunStack[i].log.message = "Element no longer exists in html"
-
-        } else {
-
-            elem.addClass('logCurrentAction');
-
-            elem.val(rerunStack[i].log.value);
-
-            elem.triggerHandler(rerunStack[i].log.action);
-
-        }
-
-        self.logMessages = rerunStack[i].log;//put in if(elem exsits)
-
-        $timeout(function (elem, i) {
-
-            elem.removeClass('logCurrentAction');
-
-            $timeout(function (i) { rerunLoop(i + 1); }, 400, true, i);
-
-        }, self.speed, true, elem, i);
-
-    }
-
-    //play log
-
-    self.rerunLog = function (stack) {
-
-        if (angular.isUndefinedOrNull(stack)) {
-
-            rerunStack = LogStack;
-
-        } else {
-
-            rerunStack = stack;
-
-        }
-
-        if (angular.isUndefinedOrNull(loggerOverlay)) {
-
-            loggerOverlay = angular.element(document.querySelector('#loggerOverlay'))
-
-        }
-
-        loggerOverlay.css('display','initial');
-
-        alowLogging = false;
-
-        rerunLoop(0);
-
-    }
-
- 
-
 }
 
  
 
-app.directive(ConfigObject.Directive, function ($compile, LogStackService, UniqueIdService) {
+app.directive(ConfigObject.Directive, function ($compile, ClientLogService, UniqueIdService) {
 
    
 
@@ -372,7 +392,7 @@ app.directive(ConfigObject.Directive, function ($compile, LogStackService, Uniqu
 
                 if (!angular.isUndefinedOrNull($scope.valueToLog)) {
 
-                    LogStackService.addLog({ elementName: $scope.nameToLog, loggerId: $scope.loggerId, elementType: element[0].localName, action: event.type, value: element[0][$scope.valueToLog] });
+                    ClientLogService.addLog({ elementName: $scope.nameToLog, loggerId: $scope.loggerId, elementType: element[0].localName, action: event.type, value: element[0][$scope.valueToLog] });
 
                 }
 
@@ -408,9 +428,7 @@ app.directive(ConfigObject.Directive, function ($compile, LogStackService, Uniqu
 
  
 
-app.directive('loggerOverlay', ["LogStackService",
-
-    function (LogStackService) {
+app.directive('loggerOverlay', function (DeveloperLogService) {
 
     return {
 
@@ -434,7 +452,13 @@ app.directive('loggerOverlay', ["LogStackService",
 
                             '<div>{{logMessages.message}}</div>' +
 
-                            '<div>{{logMessages.elementName}}  -  {{logMessages.elementType}}  -  {{logMessages.action}}  -  {{logMessages.value}}</div>' +
+                            '<div>Element Name: {{logMessages.elementName}}</div>' +
+
+                            '<div>Element Type: {{logMessages.elementType}}</div>' +
+
+                            '<div>Action Logged: {{logMessages.action}}</div>' +
+
+                            '<div>Value: {{logMessages.value}}</div>' +
 
                         '</div>' +
 
@@ -442,7 +466,7 @@ app.directive('loggerOverlay', ["LogStackService",
 
         link: function ($scope, element, attrs) {
 
-            $scope.logService = LogStackService;
+            $scope.logService = DeveloperLogService;
 
             $scope.speed = 4000;
 
@@ -468,4 +492,4 @@ app.directive('loggerOverlay', ["LogStackService",
 
     }
 
-}]);
+});
